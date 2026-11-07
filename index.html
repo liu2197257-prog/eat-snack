@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EAT SNACK · 像素贪吃蛇</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230f1218'/%3E%3Crect x='1' y='7' width='4' height='4' fill='%232ea043'/%3E%3Crect x='5' y='7' width='4' height='4' fill='%233fb950'/%3E%3Crect x='9' y='7' width='4' height='4' fill='%237ee787'/%3E%3Crect x='12' y='5' width='3' height='3' fill='%23ffcf5c'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #0b0d12;
+    --panel: #0f1218;
+    --panel-2: #12161e;
+    --line: #232b36;
+    --text: #e6edf3;
+    --muted: #8b98a9;
+    --green: #7ee787;
+    --amber: #ffcf5c;
+    --red: #ff7b72;
+    --blue: #79c0ff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    padding: 20px 14px 26px;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(1100px 560px at 50% -8%, #171e29 0%, var(--bg) 62%);
+    color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wrap {
+    width: min(94vw, 720px);
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  header { text-align: center; }
+
+  .title {
+    margin: 0;
+    font-family: "Courier New", Consolas, monospace;
+    font-weight: 900;
+    font-size: clamp(26px, 6.2vw, 46px);
+    letter-spacing: 0.16em;
+    color: #f4f9ff;
+    text-shadow: 3px 3px 0 #1b2430, 6px 6px 0 rgba(0, 0, 0, 0.55), 0 0 20px rgba(126, 231, 135, 0.16);
+  }
+
+  .subtitle {
+    margin: 7px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.32em;
+  }
+
+  .hud { display: flex; gap: 10px; }
+
+  .hud .cell {
+    flex: 1 1 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border: 2px solid var(--line);
+    font-family: "Courier New", Consolas, monospace;
+  }
+
+  .hud .label {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    white-space: nowrap;
+  }
+
+  .hud b { font-size: 22px; font-weight: 900; letter-spacing: 0.04em; }
+  #score { color: var(--green); }
+  #best  { color: var(--amber); }
+  #speed { color: var(--blue); }
+
+  .board {
+    position: relative;
+    width: min(100%, 72vh);
+    margin: 0 auto;
+    aspect-ratio: 1 / 1;
+    border: 3px solid var(--line);
+    background: var(--panel);
+    box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.45), inset 0 0 0 2px #0a0c11;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px);
+    opacity: 0.45;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 18px;
+    text-align: center;
+    background: rgba(8, 10, 14, 0.86);
+  }
+
+  .overlay.hidden { display: none; }
+
+  .ov-title {
+    margin: 0;
+    font-family: "Courier New", Consolas, monospace;
+    font-weight: 900;
+    font-size: clamp(22px, 5.4vw, 40px);
+    letter-spacing: 0.14em;
+    color: #f4f9ff;
+    text-shadow: 3px 3px 0 #1b2430, 0 0 22px rgba(126, 231, 135, 0.22);
+  }
+
+  .ov-title.over {
+    color: var(--red);
+    text-shadow: 3px 3px 0 #34171a, 0 0 22px rgba(255, 123, 114, 0.3);
+  }
+
+  .ov-msg {
+    margin: 0;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    color: #cfd9e4;
+  }
+
+  .ov-msg b {
+    color: var(--amber);
+    font-family: "Courier New", Consolas, monospace;
+    font-size: 18px;
+  }
+
+  .ov-hint {
+    margin: 4px 0 0;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    animation: blink 1.2s steps(1, end) infinite;
+  }
+
+  @keyframes blink {
+    0%, 55% { opacity: 1; }
+    56%, 100% { opacity: 0.28; }
+  }
+
+  footer {
+    text-align: center;
+    color: #6d7a8c;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    font-family: "Courier New", Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1 class="title">EAT SNACK</h1>
+      <p class="subtitle">贪吃蛇 · 像素版</p>
+    </header>
+
+    <div class="hud">
+      <div class="cell"><span class="label">分数</span><b id="score">0</b></div>
+      <div class="cell"><span class="label">最高分</span><b id="best">0</b></div>
+      <div class="cell"><span class="label">速度</span><b id="speed">1</b></div>
+    </div>
+
+    <div class="board">
+      <canvas id="game" width="640" height="640" aria-label="贪吃蛇游戏区"></canvas>
+      <div class="scanlines"></div>
+      <div class="overlay" id="overlay">
+        <h2 class="ov-title" id="ovTitle">EAT SNACK</h2>
+        <p class="ov-msg" id="ovMsg">按方向键 / WASD 开始</p>
+        <p class="ov-hint" id="ovHint">吃零食 · 别撞墙 · 别咬自己</p>
+      </div>
+    </div>
+
+    <footer>方向键 / WASD 移动 · 空格重开</footer>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var GRID = 20;
+  var CELL = 32;
+  var SIZE = GRID * CELL;                                  // 640
+  var SPEEDS = [180, 160, 140, 120, 100, 84, 72];          // 每格毫秒，吃满 5 个升一档，共 7 档
+  var BEST_KEY = 'eat-snack.best';
+  var START_HEAD = { x: 12, y: 10 };
+  var FOOD_SCORE = 10;
+
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var scoreEl = document.getElementById('score');
+  var bestEl = document.getElementById('best');
+  var speedEl = document.getElementById('speed');
+  var overlay = document.getElementById('overlay');
+  var ovTitle = document.getElementById('ovTitle');
+  var ovMsg = document.getElementById('ovMsg');
+  var ovHint = document.getElementById('ovHint');
+
+  var best = 0;
+  try {
+    best = parseInt(window.localStorage.getItem(BEST_KEY) || '0', 10) || 0;
+  } catch (err) {
+    best = 0;
+  }
+
+  var game = {
+    mode: 'ready',          // ready | running | dead
+    snake: [],              // 头在 [0]
+    dir: { x: 1, y: 0 },
+    lastDir: { x: 1, y: 0 },
+    queue: [],
+    food: { x: 0, y: 0 },
+    score: 0,
+    eaten: 0,
+    acc: 0,
+    lastTs: 0
+  };
+
+  function cellKey(x, y) { return x + ':' + y; }
+
+  function speedIndex() {
+    return Math.min(SPEEDS.length - 1, Math.floor(game.eaten / 5));
+  }
+
+  function tickMs() {
+    return SPEEDS[speedIndex()];
+  }
+
+  function syncHud() {
+    scoreEl.textContent = String(game.score);
+    bestEl.textContent = String(best);
+    speedEl.textContent = String(speedIndex() + 1);
+  }
+
+  function rememberBest() {
+    if (game.score <= best) return;
+    best = game.score;
+    try {
+      window.localStorage.setItem(BEST_KEY, String(best));
+    } catch (err) {}
+  }
+
+  /* ---------- 画布 ---------- */
+
+  function drawBoard() {
+    ctx.fillStyle = '#0f1218';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    for (var y = 0; y < GRID; y++) {
+      for (var x = 0; x < GRID; x++) {
+        if ((x + y) % 2 === 0) {
+          ctx.fillStyle = '#12161e';
+          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+        }
+      }
+    }
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+    ctx.lineWidth = 1;
+    for (var i = 1; i < GRID; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * CELL + 0.5, 0);
+      ctx.lineTo(i * CELL + 0.5, SIZE);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, i * CELL + 0.5);
+      ctx.lineTo(SIZE, i * CELL + 0.5);
+      ctx.stroke();
+    }
+  }
+
+  function drawFood() {
+    var px = game.food.x * CELL;
+    var py = game.food.y * CELL;
+    var pad = 7;
+    var size = CELL - pad * 2;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(px + pad + 3, py + pad + 3, size, size);
+
+    ctx.fillStyle = '#b57d1c';
+    ctx.fillRect(px + pad, py + pad, size, size);
+
+    ctx.fillStyle = '#ffcf5c';
+    ctx.fillRect(px + pad + 2, py + pad + 2, size - 4, size - 4);
+
+    ctx.fillStyle = '#fff4cc';
+    ctx.fillRect(px + pad + 3, py + pad + 3, 5, 5);
+  }
+
+  function drawSnake() {
+    var len = game.snake.length;
+    if (len === 0) return;
+
+    for (var i = len - 1; i >= 0; i--) {
+      var seg = game.snake[i];
+      var px = seg.x * CELL;
+      var py = seg.y * CELL;
+      var gap = 2;
+      var w = CELL - gap * 2;
+      var isHead = i === 0;
+
+      if (isHead) {
+        ctx.fillStyle = '#7ee787';
+      } else if (i % 2 === 0) {
+        ctx.fillStyle = '#3fb950';
+      } else {
+        ctx.fillStyle = '#2ea043';
+      }
+      ctx.fillRect(px + gap, py + gap, w, w);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.13)';
+      ctx.fillRect(px + gap + 2, py + gap + 2, w - 4, 4);
+
+      if (!isHead) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillRect(px + gap, py + gap + w - 4, w, 4);
+      }
+    }
+
+    var head = game.snake[0];
+    var hx = head.x * CELL;
+    var hy = head.y * CELL;
+    var d = game.dir;
+    var perpX = -d.y;
+    var perpY = d.x;
+
+    for (var side = -1; side <= 1; side += 2) {
+      var ex = hx + CELL / 2 + d.x * 6 + perpX * 7 * side;
+      var ey = hy + CELL / 2 + d.y * 6 + perpY * 7 * side;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(ex - 3, ey - 3, 6, 6);
+
+      ctx.fillStyle = '#10241a';
+      ctx.fillRect(ex - 1 + d.x * 1, ey - 1 + d.y * 1, 3, 3);
+    }
+  }
+
+  function draw() {
+    drawBoard();
+    drawFood();
+    drawSnake();
+  }
+
+  /* ---------- 覆盖层 ---------- */
+
+  function showOverlay(title, msg, hint, isOver) {
+    ovTitle.textContent = title;
+    ovTitle.classList.toggle('over', !!isOver);
+    ovMsg.innerHTML = msg;
+    ovHint.textContent = hint;
+    overlay.classList.remove('hidden');
+  }
+
+  function hideOverlay() {
+    overlay.classList.add('hidden');
+  }
+
+  /* ---------- 规则 ---------- */
+
+  function placeFood() {
+    var taken = new Set();
+    for (var i = 0; i < game.snake.length; i++) {
+      taken.add(cellKey(game.snake[i].x, game.snake[i].y));
+    }
+
+    var free = [];
+    for (var y = 0; y < GRID; y++) {
+      for (var x = 0; x < GRID; x++) {
+        if (!taken.has(cellKey(x, y))) free.push({ x: x, y: y });
+      }
+    }
+
+    if (free.length === 0) return false;
+    game.food = free[Math.floor(Math.random() * free.length)];
+    return true;
+  }
+
+  function resetToReady() {
+    game.mode = 'ready';
+    game.dir = { x: 1, y: 0 };
+    game.lastDir = { x: 1, y: 0 };
+    game.queue = [];
+    game.score = 0;
+    game.eaten = 0;
+    game.acc = 0;
+    game.lastTs = 0;
+    game.snake = [
+      { x: START_HEAD.x, y: START_HEAD.y },
+      { x: START_HEAD.x - 1, y: START_HEAD.y },
+      { x: START_HEAD.x - 2, y: START_HEAD.y }
+    ];
+
+    placeFood();
+    syncHud();
+    draw();
+    showOverlay('EAT SNACK', '按方向键 / WASD 开始', '吃零食 · 别撞墙 · 别咬自己', false);
+  }
+
+  function beginRound(dir) {
+    game.mode = 'running';
+    game.dir = { x: dir.x, y: dir.y };
+    game.lastDir = { x: dir.x, y: dir.y };
+    game.queue = [];
+    game.score = 0;
+    game.eaten = 0;
+    game.acc = 0;
+    game.lastTs = 0;
+    game.snake = [
+      { x: START_HEAD.x, y: START_HEAD.y },
+      { x: START_HEAD.x - dir.x, y: START_HEAD.y - dir.y },
+      { x: START_HEAD.x - dir.x * 2, y: START_HEAD.y - dir.y * 2 }
+    ];
+
+    placeFood();
+    syncHud();
+    hideOverlay();
+    draw();
+  }
+
+  function die() {
+    game.mode = 'dead';
+    game.queue = [];
+    draw();
+    showOverlay(
+      'GAME OVER',
+      '本局得分 <b>' + game.score + '</b>　最高分 <b>' + best + '</b>',
+      '按空格立即重开',
+      true
+    );
+  }
+
+  function win() {
+    game.mode = 'dead';
+    game.queue = [];
+    draw();
+    showOverlay('ALL CLEAR', '棋盘被你吃满了，得分 <b>' + game.score + '</b>', '按空格立即重开', false);
+  }
+
+  function step() {
+    if (game.queue.length > 0) {
+      game.dir = game.queue.shift();
+      game.lastDir = game.dir;
+    }
+
+    var head = game.snake[0];
+    var nx = head.x + game.dir.x;
+    var ny = head.y + game.dir.y;
+
+    if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) {
+      die();
+      return;
+    }
+
+    var eating = (nx === game.food.x && ny === game.food.y);
+    var limit = game.snake.length - (eating ? 0 : 1);
+
+    for (var i = 0; i < limit; i++) {
+      if (game.snake[i].x === nx && game.snake[i].y === ny) {
+        die();
+        return;
+      }
+    }
+
+    game.snake.unshift({ x: nx, y: ny });
+
+    if (eating) {
+      game.score += FOOD_SCORE;
+      game.eaten += 1;
+      rememberBest();
+      if (!placeFood()) {
+        syncHud();
+        win();
+        return;
+      }
+    } else {
+      game.snake.pop();
+    }
+
+    syncHud();
+  }
+
+  /* ---------- 主循环 ---------- */
+
+  function frame(ts) {
+    window.requestAnimationFrame(frame);
+
+    if (game.mode !== 'running') {
+      game.lastTs = ts;
+      return;
+    }
+
+    if (!game.lastTs) game.lastTs = ts;
+    var dt = ts - game.lastTs;
+    game.lastTs = ts;
+    if (dt > 250) dt = 250;
+
+    game.acc += dt;
+
+    var guard = 0;
+    while (game.mode === 'running' && game.acc >= tickMs() && guard < 10) {
+      game.acc -= tickMs();
+      step();
+      guard += 1;
+    }
+
+    if (game.mode === 'running') draw();
+  }
+
+  /* ---------- 输入 ---------- */
+
+  var KEY_DIRS = {
+    arrowup: { x: 0, y: -1 },
+    arrowdown: { x: 0, y: 1 },
+    arrowleft: { x: -1, y: 0 },
+    arrowright: { x: 1, y: 0 },
+    w: { x: 0, y: -1 },
+    s: { x: 0, y: 1 },
+    a: { x: -1, y: 0 },
+    d: { x: 1, y: 0 }
+  };
+
+  function onKeyDown(e) {
+    var raw = typeof e.key === 'string' ? e.key : '';
+    var k = raw.toLowerCase();
+
+    if (raw === ' ' || e.code === 'Space') {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (game.mode === 'dead') beginRound(game.lastDir);
+      return;
+    }
+
+    var dir = KEY_DIRS[k];
+    if (!dir) return;
+    e.preventDefault();
+
+    if (game.mode === 'ready') {
+      beginRound(dir);
+      return;
+    }
+
+    if (game.mode !== 'running') return;
+
+    var ref = game.queue.length > 0 ? game.queue[game.queue.length - 1] : game.dir;
+    if (dir.x === ref.x && dir.y === ref.y) return;        // 同方向，忽略
+    if (dir.x === -ref.x && dir.y === -ref.y) return;      // 180° 掉头，忽略
+    if (game.queue.length < 2) game.queue.push(dir);       // 缓存两步，快速连按不丢
+  }
+
+  window.addEventListener('keydown', onKeyDown);
+
+  // 失焦时清空输入缓存，避免切回窗口后连跳两格
+  window.addEventListener('blur', function () {
+    game.queue.length = 0;
+    game.lastTs = 0;
+  });
+
+  resetToReady();
+  window.requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
